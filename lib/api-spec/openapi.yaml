@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: android-analysis
+    description: Local Android APK analysis through the REA CLI
 paths:
   /healthz:
     get:
@@ -24,6 +26,115 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /analysis/android:
+    post:
+      operationId: analyzeAndroid
+      tags: [android-analysis]
+      summary: Run one REA Android APK analysis command
+      description: Uploads an APK to the API service, invokes one fixed REA CLI command, and removes the temporary file after the request.
+      parameters:
+        - name: operation
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/AndroidAnalysisOperation"
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 256
+        - name: className
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+        - name: methodName
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 256
+        - name: overloadIndex
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 1000000
+        - name: x-rea-filename
+          in: header
+          required: true
+          description: URL-encoded APK filename; path separators are rejected.
+          schema:
+            type: string
+            maxLength: 768
+      requestBody:
+        required: true
+        content:
+          application/vnd.android.package-archive:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: REA analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AndroidAnalysisResponse"
+        "400":
+          description: Invalid operation or command arguments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisErrorResponse"
+        "413":
+          description: APK exceeds the upload limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisErrorResponse"
+        "415":
+          description: Only APK uploads are accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisErrorResponse"
+        "422":
+          description: Uploaded content is not a ZIP-based APK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisErrorResponse"
+        "429":
+          description: Another REA analysis is already running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisErrorResponse"
+        "502":
+          description: REA CLI returned an invalid result or failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisErrorResponse"
+        "503":
+          description: REA or JADX runtime is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisErrorResponse"
+        "504":
+          description: REA analysis timed out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +144,42 @@ components:
           type: string
       required:
         - status
+    AndroidAnalysisOperation:
+      type: string
+      enum:
+        - inspect_android_package
+        - search_android_classes
+        - inspect_android_class
+        - inspect_android_method
+        - trace_android_references
+    AndroidAnalysisResponse:
+      type: object
+      properties:
+        operation:
+          $ref: "#/components/schemas/AndroidAnalysisOperation"
+        fileName:
+          type: string
+        sizeBytes:
+          type: integer
+          minimum: 0
+        analyzedAt:
+          type: string
+          format: date-time
+        engineVersion:
+          type: string
+        result: {}
+      required:
+        - operation
+        - fileName
+        - sizeBytes
+        - analyzedAt
+        - engineVersion
+        - result
+    AnalysisErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
 
