@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "REA Static Lab"
+description = "A privacy-first browser app for static file triage. It analyzes user-selected files locally, reports file metadata, hashes, signatures, printable strings, and lets users export a JSON report without uploading files to a server."
+version = "1.0.0"
+id = "artifacts/rea-static-lab"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23517
+
+[services.development]
+run = "pnpm --filter @workspace/rea-static-lab run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/rea-static-lab", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/rea-static-lab/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23517"
+BASE_PATH = "/"
